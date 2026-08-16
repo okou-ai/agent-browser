@@ -1,8 +1,20 @@
 # agent-browser
 
-## 0.34.0
+## 0.34.0-vm0.1
 
 <!-- release:start -->
+### Improvements
+
+- Updated the vm0 fork to upstream `v0.34.0` while preserving native system root trust for Rust HTTP and WebSocket clients.
+
+### Contributors
+
+- @e7h4n
+- @seven332
+<!-- release:end -->
+
+## 0.34.0
+
 ### New Features
 
 - Added **persistent session-to-tab binding for shared Chrome sessions**. Named sessions connected through `--cdp` or `--auto-connect` now remember their CDP target across commands and daemon restarts, and CDP target ids can be used directly as tab references. Start each session with `--pin-tab` to make the binding strict, so a tab closed externally returns a stable `tab_gone` error instead of silently adopting a neighboring tab. JSON output includes `data.targetId` and an optional sanitized `data.lastUrl`; batch exposes the same recovery data under `result` (#1589)
@@ -23,7 +35,6 @@
 - @soichisumi
 - @dandaka
 - @mvanhorn
-<!-- release:end -->
 
 ## 0.33.2
 
