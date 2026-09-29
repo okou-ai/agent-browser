@@ -1,8 +1,24 @@
 # agent-browser
 
-## 0.38.1
+## 0.38.1-vm0.1
 
 <!-- release:start -->
+### Bug Fixes
+
+- Changed the Rust HTTP and WebSocket clients to trust native system roots, allowing CDP connections through enterprise proxies with an installed private CA.
+
+### Release
+
+- Built the fork from upstream v0.38.1. GitHub Release binaries are available without publishing npm packages.
+
+### Contributors
+
+- @e7h4n
+- @seven332
+<!-- release:end -->
+
+## 0.38.1
+
 ### Bug Fixes
 
 - Fixed **recording cursor and mouse movement timing** so cursor rendering stays synchronized with page content during drags and timed mouse moves (#1869)
@@ -15,7 +31,6 @@
 
 - @ctate
 - @Railly
-<!-- release:end -->
 
 ## 0.38.0
 
