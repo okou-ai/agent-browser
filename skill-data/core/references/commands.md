@@ -461,7 +461,7 @@ agent-browser --extension <path> ...  # Load browser extension (repeatable)
 agent-browser --ignore-https-errors   # Ignore SSL certificate errors
 agent-browser --ca-cert <path>        # Trust a CA for CLI requests, and in local Chromium on Linux (install --with-deps provides certutil)
 agent-browser --no-ca-cert            # Clear CA trust retained by the running session
-agent-browser --use-system-ca         # OS trust store for CLI requests (read, install, upgrade, doctor)
+agent-browser --use-system-ca <bool>  # CLI HTTPS: OS roots by default; false selects built-in Mozilla roots
 agent-browser --hide-scrollbars false # Keep native scrollbars visible in headless Chromium screenshots
 agent-browser --help                  # Show help (-h)
 agent-browser --version               # Show version (-V)

@@ -304,6 +304,20 @@ fn trust_preserves_hostname_and_expiry_validation() {
 }
 
 #[test]
+fn native_system_roots_are_default_and_explicit_false_persists_until_close() {
+    let a = TlsServer::a();
+    let mut session = Session::new();
+    session.system_bundle = Some(session.ca("native.pem", CA_A));
+
+    // Clear the ambient CA fallback so only native trust can accept the fixture.
+    read(&session, &a.url(), &["--no-ca-cert"], true);
+    read(&session, &a.url(), &["--use-system-ca", "false"], false);
+    read(&session, &a.url(), &[], false);
+    assert_eq!(session.run(&["close"])["success"], true);
+    read(&session, &a.url(), &["--no-ca-cert"], true);
+}
+
+#[test]
 fn system_roots_refresh_and_explicit_false_overrides_environment() {
     let (a, b) = (TlsServer::a(), TlsServer::b());
     let mut session = Session::new();

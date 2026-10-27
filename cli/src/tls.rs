@@ -1,14 +1,13 @@
 //! Trust roots for the CLI's own HTTPS requests.
 //!
-//! By default the CLI verifies peers against the Mozilla roots compiled into
-//! the binary. A private CA installed by a sandbox, MDM profile, or enterprise
-//! image is invisible to that list, so an HTTPS-intercepting proxy breaks
-//! `install`, `upgrade`, `doctor` probes, and `read` with `UnknownIssuer`.
+//! This fork verifies peers against the operating system trust store by
+//! default, including private CAs installed by a sandbox, MDM profile, or
+//! enterprise image.
 //!
-//! Two opt-ins widen the trust store. Neither disables verification:
+//! Two options select or extend the trust store. Neither disables verification:
 //!
-//! - `--use-system-ca` uses the operating system trust store instead of the
-//!   compiled-in roots.
+//! - `--use-system-ca false` selects the Mozilla roots compiled into the binary
+//!   instead of the operating system trust store.
 //! - `--ca-cert <path>` adds a PEM bundle or DER certificate on top of the
 //!   selected roots. `SSL_CERT_FILE` is honored as an ambient fallback.
 //!
@@ -26,10 +25,10 @@ use serde::{Deserialize, Serialize};
 use crate::flags::Flags;
 
 /// Which roots the CLI verifies against.
-#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", default)]
 pub struct TrustOptions {
-    /// Use the operating system trust store instead of the compiled-in roots.
+    /// Use the operating system trust store. Enabled by default in this fork.
     pub use_system_ca: bool,
     /// Extra CA file to trust on top of the selected roots.
     pub ca_cert: Option<String>,
@@ -39,9 +38,19 @@ pub struct TrustOptions {
     pub ca_cert_is_implicit: bool,
 }
 
+impl Default for TrustOptions {
+    fn default() -> Self {
+        Self {
+            use_system_ca: true,
+            ca_cert: None,
+            ca_cert_is_implicit: false,
+        }
+    }
+}
+
 impl TrustOptions {
     pub fn is_default(&self) -> bool {
-        !self.use_system_ca && self.ca_cert.is_none()
+        self.use_system_ca && self.ca_cert.is_none()
     }
 }
 
@@ -329,7 +338,7 @@ mod tests {
     }
 
     #[test]
-    fn unusable_ambient_bundle_keeps_built_in_roots() {
+    fn unusable_ambient_bundle_keeps_selected_roots() {
         let opts = TrustOptions {
             ca_cert: Some("/nonexistent/ca.pem".to_string()),
             ca_cert_is_implicit: true,

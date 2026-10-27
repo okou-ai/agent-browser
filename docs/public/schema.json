@@ -130,7 +130,8 @@
     },
     "useSystemCa": {
       "type": "boolean",
-      "description": "Use the operating system trust store instead of the built-in roots for the CLI's own HTTPS requests. Does not affect the browser. Can also be set with AGENT_BROWSER_USE_SYSTEM_CA."
+      "default": true,
+      "description": "Use the operating system trust store for the CLI's own HTTPS requests (default: true in this fork). Set false to select built-in Mozilla roots. Does not affect the browser. Can also be set with AGENT_BROWSER_USE_SYSTEM_CA."
     },
     "clearCaCert": {
       "type": "boolean",

@@ -23,7 +23,7 @@ agent-browser --use-system-ca read https://example.com
     <tr><td><code>--proxy &lt;url&gt;</code></td><td>Proxy server URL, with optional credentials</td></tr>
     <tr><td><code>--proxy-bypass &lt;hosts&gt;</code></td><td>Hosts that should bypass the proxy</td></tr>
     <tr><td><code>--ca-cert &lt;path&gt;</code></td><td>Trust a CA certificate or PEM bundle for the CLI's own HTTPS requests, and in a locally launched Chromium browser on Linux</td></tr>
-    <tr><td><code>--use-system-ca</code></td><td>Use the operating system trust store for the CLI's own HTTPS requests</td></tr>
+    <tr><td><code>--use-system-ca &lt;bool&gt;</code></td><td>Use the operating system trust store for CLI HTTPS requests (default: true in this fork); false selects built-in Mozilla roots</td></tr>
     <tr><td><code>--no-ca-cert</code></td><td>Clear CA trust retained by the running browser session</td></tr>
   </tbody>
 </table>
@@ -40,7 +40,7 @@ agent-browser --use-system-ca read https://example.com
     <tr><td><code>AGENT_BROWSER_PROXY_USERNAME</code></td><td>Proxy username when credentials are provided separately</td></tr>
     <tr><td><code>AGENT_BROWSER_PROXY_PASSWORD</code></td><td>Proxy password when credentials are provided separately</td></tr>
     <tr><td><code>AGENT_BROWSER_CA_CERT</code></td><td>Path to a CA certificate or PEM bundle for CLI requests and locally launched Chromium on Linux</td></tr>
-    <tr><td><code>AGENT_BROWSER_USE_SYSTEM_CA</code></td><td>Use the operating system trust store for CLI requests</td></tr>
+    <tr><td><code>AGENT_BROWSER_USE_SYSTEM_CA</code></td><td>Use the operating system trust store for CLI requests (default: enabled in this fork); 0 selects built-in Mozilla roots</td></tr>
     <tr><td><code>SSL_CERT_FILE</code></td><td>Fallback CA file for CLI requests when no CA is configured</td></tr>
     <tr><td><code>HTTP_PROXY</code> / <code>HTTPS_PROXY</code></td><td>Standard proxy environment variables, used as fallbacks</td></tr>
     <tr><td><code>ALL_PROXY</code></td><td>SOCKS or all-traffic proxy fallback</td></tr>
@@ -54,7 +54,7 @@ agent-browser --use-system-ca read https://example.com
 
 ### CLI requests
 
-`read`, `install`, `upgrade`, and `doctor` make their own HTTPS requests and trust the built-in Mozilla roots by default. On every platform, `--ca-cert` adds the CA to those requests, and `--use-system-ca` switches them to the operating system trust store, which already holds a CA deployed by MDM or an enterprise image. `SSL_CERT_FILE` is used as a fallback CA file and is ignored with a warning when unusable. Neither option disables certificate or hostname verification. For `read`, a selection given on the command line stays in effect for the session until `close`, including across daemon restarts; `--no-ca-cert` or `--use-system-ca false` turns it off. `read` never launches or relaunches a browser because of these options. They do not yet change how agent-browser connects to a remote browser over `--cdp`, `--auto-connect`, or a provider.
+`read`, `install`, `upgrade`, and `doctor` make their own HTTPS requests and trust the operating system root store by default in this fork. `--use-system-ca false` selects the built-in Mozilla roots. On every platform, `--ca-cert` adds the CA to the selected roots. `SSL_CERT_FILE` is used as a fallback CA file and is ignored with a warning when unusable. Neither option disables certificate or hostname verification. For `read`, a selection given on the command line stays in effect for the session until `close`, including across daemon restarts; `--no-ca-cert` clears the added CA and `--use-system-ca false` selects built-in Mozilla roots. `read` never launches or relaunches a browser because of these options. These options do not override remote CDP connection trust; remote CDP connections use the operating system trust store by default in this fork.
 
 ### Browser
 

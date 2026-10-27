@@ -499,7 +499,7 @@ EOF
 --proxy <url>           # proxy server
 --ca-cert <path>        # trust a CA for CLI requests, and in local Chromium on Linux (install --with-deps provides certutil)
 --no-ca-cert            # clear CA trust retained by the running session
---use-system-ca         # OS trust store for CLI requests (read, install, upgrade, doctor)
+--use-system-ca <bool>  # CLI HTTPS: OS roots by default; false selects built-in Mozilla roots
 --state <path>          # load saved auth state from JSON
 --restore [name]        # auto-save/restore session state, defaults to --session
 --restore-save <policy> # auto, always, or never
