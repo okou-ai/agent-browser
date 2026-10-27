@@ -1,8 +1,25 @@
 # agent-browser
 
-## 0.39.4
+## 0.39.4-vm0.1
 
 <!-- release:start -->
+
+### Bug Fixes
+
+- Changed the Rust HTTP and WebSocket clients to trust native system roots, allowing CDP connections through enterprise proxies with an installed private CA.
+
+### Release
+
+- Built the fork from upstream v0.39.4. GitHub Release binaries are available without publishing npm packages.
+
+### Contributors
+
+- @e7h4n
+- @seven332
+
+<!-- release:end -->
+
+## 0.39.4
 
 ### Bug Fixes
 
@@ -20,8 +37,6 @@
 - @justjavac
 - @aamirhullur
 - @zyz619963502zyz
-
-<!-- release:end -->
 
 ## 0.39.3
 
