@@ -1800,6 +1800,7 @@ fn main() {
         proxy_username: proxy_username.as_deref(),
         proxy_password: proxy_password.as_deref(),
         ignore_https_errors: flags.ignore_https_errors,
+        use_system_ca: tls::transport_use_system_ca(),
         allow_file_access: flags.allow_file_access,
         hide_scrollbars: flags.hide_scrollbars,
         webgpu: flags.webgpu,

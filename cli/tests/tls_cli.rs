@@ -1,11 +1,11 @@
 use std::io::{Read, Write};
 use std::net::{TcpListener, TcpStream};
 use std::path::PathBuf;
-use std::process::{Command, Output};
+use std::process::{Child, Command, Output, Stdio};
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::thread::{self, JoinHandle};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use rustls::{ServerConfig, ServerConnection, StreamOwned};
 use serde_json::Value;
@@ -304,20 +304,6 @@ fn trust_preserves_hostname_and_expiry_validation() {
 }
 
 #[test]
-fn native_system_roots_are_default_and_explicit_false_persists_until_close() {
-    let a = TlsServer::a();
-    let mut session = Session::new();
-    session.system_bundle = Some(session.ca("native.pem", CA_A));
-
-    // Clear the ambient CA fallback so only native trust can accept the fixture.
-    read(&session, &a.url(), &["--no-ca-cert"], true);
-    read(&session, &a.url(), &["--use-system-ca", "false"], false);
-    read(&session, &a.url(), &[], false);
-    assert_eq!(session.run(&["close"])["success"], true);
-    read(&session, &a.url(), &["--no-ca-cert"], true);
-}
-
-#[test]
 fn system_roots_refresh_and_explicit_false_overrides_environment() {
     let (a, b) = (TlsServer::a(), TlsServer::b());
     let mut session = Session::new();
@@ -341,8 +327,133 @@ fn system_roots_refresh_and_explicit_false_overrides_environment() {
         .unwrap();
     let response: Value = serde_json::from_slice(&out.stdout).unwrap();
     assert_eq!(response["success"], false, "{response}");
-    assert_eq!(session.pid(), pid);
+    assert_ne!(
+        session.pid(),
+        pid,
+        "changing global transport trust restarts the daemon"
+    );
     read(&session, &b.url(), &[], false);
+}
+
+#[test]
+fn cdp_system_ca_environment_changes_restart_and_reconfigure_the_daemon() {
+    let server = TlsServer::a();
+    let mut session = Session::new();
+    session.system_bundle = Some(session.ca("native.pem", CA_A));
+    let url = format!("wss://localhost:{}/devtools/browser/fixture", server.port);
+
+    // A TLS-only fixture returns HTTP 200 instead of upgrading to WebSocket.
+    // Receiving that response proves certificate verification accepted its CA.
+    let first = session.run(&["connect", &url]);
+    assert_eq!(first["success"], false);
+    assert!(
+        first["error"].as_str().unwrap().contains("certificate"),
+        "{first}"
+    );
+    assert_eq!(server.requests.load(Ordering::SeqCst), 0);
+    let mut pid = session.pid();
+    for (value, expected_requests, restarted) in [("1", 1, true), ("1", 2, false), ("0", 2, true)] {
+        let output = session
+            .command()
+            .env("AGENT_BROWSER_USE_SYSTEM_CA", value)
+            .args(["connect", &url])
+            .output()
+            .unwrap();
+        let response: Value = serde_json::from_slice(&output.stdout).unwrap();
+        assert_eq!(response["success"], false, "TLS fixture does not speak CDP");
+        assert_eq!(
+            server.requests.load(Ordering::SeqCst),
+            expected_requests,
+            "{response}"
+        );
+        assert_eq!(session.pid() != pid, restarted, "{response}");
+        pid = session.pid();
+    }
+}
+
+#[test]
+fn provider_https_obeys_the_system_ca_environment() {
+    for (enabled, expected_requests) in [("0", 0), ("1", 1)] {
+        let server = TlsServer::a();
+        let mut session = Session::new();
+        session.system_bundle = Some(session.ca("native.pem", CA_A));
+        let output = session
+            .command()
+            .env("AGENT_BROWSER_USE_SYSTEM_CA", enabled)
+            .env("BROWSERLESS_API_KEY", "fixture")
+            .env("BROWSERLESS_API_URL", server.url())
+            .args(["--provider", "browserless", "open", "about:blank"])
+            .output()
+            .unwrap();
+        assert!(
+            !output.status.success(),
+            "fixture does not return a provider session"
+        );
+        assert_eq!(
+            server.requests.load(Ordering::SeqCst),
+            expected_requests,
+            "{}",
+            String::from_utf8_lossy(&output.stdout)
+        );
+    }
+}
+
+struct ChildGuard(Child);
+
+impl Drop for ChildGuard {
+    fn drop(&mut self) {
+        let _ = self.0.kill();
+        let _ = self.0.wait();
+    }
+}
+
+#[test]
+fn dashboard_gateway_https_obeys_the_system_ca_environment() {
+    for (enabled, expected_requests) in [("0", 0), ("1", 1)] {
+        let server = TlsServer::a();
+        let mut session = Session::new();
+        session.system_bundle = Some(session.ca("native.pem", CA_A));
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let port = listener.local_addr().unwrap().port();
+        drop(listener);
+        let mut dashboard = ChildGuard(
+            session
+                .command()
+                .env("AGENT_BROWSER_DASHBOARD", "1")
+                .env("AGENT_BROWSER_DASHBOARD_PORT", port.to_string())
+                .env("AGENT_BROWSER_USE_SYSTEM_CA", enabled)
+                .env("AI_GATEWAY_API_KEY", "fixture")
+                .env("AI_GATEWAY_URL", server.url())
+                .stdout(Stdio::null())
+                .stderr(Stdio::null())
+                .spawn()
+                .unwrap(),
+        );
+        let deadline = Instant::now() + Duration::from_secs(10);
+        let mut stream = loop {
+            if let Ok(stream) = TcpStream::connect(("127.0.0.1", port)) {
+                break stream;
+            }
+            assert!(
+                dashboard.0.try_wait().unwrap().is_none(),
+                "dashboard exited"
+            );
+            assert!(Instant::now() < deadline, "dashboard did not start");
+            thread::sleep(Duration::from_millis(20));
+        };
+        stream
+            .set_read_timeout(Some(Duration::from_secs(5)))
+            .unwrap();
+        write!(stream, "GET /api/models HTTP/1.1\r\nHost: 127.0.0.1:{port}\r\nOrigin: http://127.0.0.1:{port}\r\nConnection: close\r\n\r\n").unwrap();
+        let mut response = String::new();
+        stream.read_to_string(&mut response).unwrap();
+        assert!(response.starts_with("HTTP/1.1 200 OK"), "{response}");
+        assert_eq!(
+            server.requests.load(Ordering::SeqCst),
+            expected_requests,
+            "{response}"
+        );
+    }
 }
 
 #[test]

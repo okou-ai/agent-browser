@@ -499,6 +499,7 @@ pub struct DaemonOptions<'a> {
     pub proxy_username: Option<&'a str>,
     pub proxy_password: Option<&'a str>,
     pub ignore_https_errors: bool,
+    pub use_system_ca: bool,
     pub allow_file_access: bool,
     pub hide_scrollbars: bool,
     pub webgpu: bool,
@@ -527,7 +528,11 @@ pub struct DaemonOptions<'a> {
 
 fn apply_daemon_env(cmd: &mut Command, session: &str, opts: &DaemonOptions) {
     cmd.env("AGENT_BROWSER_DAEMON", "1")
-        .env("AGENT_BROWSER_SESSION", session);
+        .env("AGENT_BROWSER_SESSION", session)
+        .env(
+            "AGENT_BROWSER_USE_SYSTEM_CA",
+            if opts.use_system_ca { "1" } else { "0" },
+        );
 
     if opts.headed {
         cmd.env("AGENT_BROWSER_HEADED", "1");
@@ -651,6 +656,7 @@ fn daemon_config_fingerprint(opts: &DaemonOptions) -> String {
     opts.idle_timeout.hash(&mut hasher);
     opts.default_timeout.hash(&mut hasher);
     opts.no_auto_dialog.hash(&mut hasher);
+    opts.use_system_ca.hash(&mut hasher);
     format!("{:016x}", hasher.finish())
 }
 
@@ -1632,6 +1638,7 @@ mod tests {
             proxy_username: None,
             proxy_password: None,
             ignore_https_errors: false,
+            use_system_ca: false,
             allow_file_access: false,
             hide_scrollbars: true,
             webgpu: false,
@@ -1666,6 +1673,13 @@ mod tests {
         let idle_changed = test_daemon_options(Some("1000"), false, None);
         let dialog_changed = test_daemon_options(None, true, None);
         let domains_changed = test_daemon_options(None, false, Some(&domains));
+        let mut trust_changed = test_daemon_options(None, false, None);
+        trust_changed.use_system_ca = true;
+
+        assert_ne!(
+            daemon_config_fingerprint(&base),
+            daemon_config_fingerprint(&trust_changed)
+        );
 
         assert_ne!(
             daemon_config_fingerprint(&base),

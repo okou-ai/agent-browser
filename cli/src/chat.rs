@@ -120,6 +120,20 @@ async fn run_single_turn(
     }
 }
 
+fn gateway_client(json_mode: bool) -> Option<&'static reqwest::Client> {
+    match chat::http_client() {
+        Ok(client) => Some(client),
+        Err(error) => {
+            if json_mode {
+                println!("{}", json!({"success": false, "error": error}));
+            } else {
+                eprintln!("{} {error}", color::error_indicator());
+            }
+            None
+        }
+    }
+}
+
 async fn run_interactive(session: &str, model: &str, verbosity: Verbosity, json_mode: bool) {
     let mut openai_messages: Vec<Value> =
         vec![json!({"role": "system", "content": chat::system_prompt_for(session)})];
@@ -130,7 +144,9 @@ async fn run_interactive(session: &str, model: &str, verbosity: Verbosity, json_
         .to_string();
     let api_key = std::env::var("AI_GATEWAY_API_KEY").unwrap_or_default();
     let url = format!("{}/v1/chat/completions", gateway_url);
-    let client = chat::http_client();
+    let Some(client) = gateway_client(json_mode) else {
+        exit(1);
+    };
 
     loop {
         if !json_mode {
@@ -220,7 +236,9 @@ async fn run_chat_turn(
 
     let tools: Value = serde_json::from_str(chat::CHAT_TOOLS).unwrap();
     let url = format!("{}/v1/chat/completions", gateway_url);
-    let client = chat::http_client();
+    let Some(client) = gateway_client(json_mode) else {
+        return false;
+    };
 
     let total_deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(300);
     let tool_timeout = std::time::Duration::from_secs(60);

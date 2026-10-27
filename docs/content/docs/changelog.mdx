@@ -9,8 +9,8 @@ navTitle: "Changelog"
 
 ### Bug Fixes
 
-- Changed the Rust HTTP and WebSocket clients to trust native system roots, allowing CDP connections through enterprise proxies with an installed private CA.
-- Preserved native trust as the CLI default while keeping upstream's explicit `--use-system-ca false` opt-out effective.
+- Extended `AGENT_BROWSER_USE_SYSTEM_CA=1` to remote CDP/WSS connections, built-in provider API requests, and dashboard AI Gateway requests using the existing native certificate loader. Leaving it unset or setting it to `0` keeps the upstream built-in roots.
+- Included the environment setting in daemon configuration so changes restart the daemon and rebuild its transport clients with the selected trust policy.
 
 ### Release
 

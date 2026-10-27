@@ -1,13 +1,14 @@
-//! Trust roots for the CLI's own HTTPS requests.
+//! Trust roots for agent-owned HTTPS and WebSocket requests.
 //!
-//! This fork verifies peers against the operating system trust store by
-//! default, including private CAs installed by a sandbox, MDM profile, or
-//! enterprise image.
+//! By default the CLI verifies peers against the Mozilla roots compiled into
+//! the binary. A private CA installed by a sandbox, MDM profile, or enterprise
+//! image is invisible to that list, so an HTTPS-intercepting proxy breaks
+//! `install`, `upgrade`, `doctor` probes, and `read` with `UnknownIssuer`.
 //!
-//! Two options select or extend the trust store. Neither disables verification:
+//! Two opt-ins widen the trust store. Neither disables verification:
 //!
-//! - `--use-system-ca false` selects the Mozilla roots compiled into the binary
-//!   instead of the operating system trust store.
+//! - `--use-system-ca` uses the operating system trust store instead of the
+//!   compiled-in roots.
 //! - `--ca-cert <path>` adds a PEM bundle or DER certificate on top of the
 //!   selected roots. `SSL_CERT_FILE` is honored as an ambient fallback.
 //!
@@ -15,8 +16,13 @@
 //! request, so the daemon holds no trust state. An explicit selection made on
 //! the command line is saved beside the session until `close`, which keeps it
 //! in effect when the daemon restarts for an unrelated config change.
+//!
+//! The `AGENT_BROWSER_USE_SYSTEM_CA` environment variable also selects native
+//! roots for CDP/WSS, provider APIs, and CLI/dashboard AI Gateway transports.
+//! Those process-wide transports retain built-in roots when it is unset or off.
 
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 use std::sync::OnceLock;
 
 use rustls::{ClientConfig, RootCertStore};
@@ -25,10 +31,10 @@ use serde::{Deserialize, Serialize};
 use crate::flags::Flags;
 
 /// Which roots the CLI verifies against.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", default)]
 pub struct TrustOptions {
-    /// Use the operating system trust store. Enabled by default in this fork.
+    /// Use the operating system trust store instead of the compiled-in roots.
     pub use_system_ca: bool,
     /// Extra CA file to trust on top of the selected roots.
     pub ca_cert: Option<String>,
@@ -38,19 +44,9 @@ pub struct TrustOptions {
     pub ca_cert_is_implicit: bool,
 }
 
-impl Default for TrustOptions {
-    fn default() -> Self {
-        Self {
-            use_system_ca: true,
-            ca_cert: None,
-            ca_cert_is_implicit: false,
-        }
-    }
-}
-
 impl TrustOptions {
     pub fn is_default(&self) -> bool {
-        self.use_system_ca && self.ca_cert.is_none()
+        !self.use_system_ca && self.ca_cert.is_none()
     }
 }
 
@@ -170,6 +166,42 @@ pub fn configure_process(flags: &Flags) {
 
 pub fn process_options() -> TrustOptions {
     PROCESS_OPTIONS.get().cloned().unwrap_or_default()
+}
+
+/// Process-wide trust for provider, gateway, and remote CDP connections.
+/// CA-file and CLI flag selections retain their existing request/session scope.
+pub fn transport_use_system_ca() -> bool {
+    crate::flags::env_var_bool("AGENT_BROWSER_USE_SYSTEM_CA").unwrap_or(false)
+}
+
+fn transport_options() -> TrustOptions {
+    TrustOptions {
+        use_system_ca: transport_use_system_ca(),
+        ..TrustOptions::default()
+    }
+}
+
+/// Build an outbound HTTP client using the process-wide transport policy.
+pub fn http_client_builder() -> Result<reqwest::ClientBuilder, String> {
+    apply_to_reqwest(reqwest::Client::builder(), &transport_options())
+}
+
+pub fn http_client() -> Result<reqwest::Client, String> {
+    http_client_builder()?
+        .build()
+        .map_err(|error| format!("Could not initialize HTTP client: {error}"))
+}
+
+/// Override WebSocket trust only when the environment opts into native roots.
+pub fn websocket_connector() -> Result<Option<tokio_tungstenite::Connector>, String> {
+    let options = transport_options();
+    if !options.use_system_ca {
+        return Ok(None);
+    }
+    let config = ClientConfig::builder()
+        .with_root_certificates(build_root_store(&options)?)
+        .with_no_client_auth();
+    Ok(Some(tokio_tungstenite::Connector::Rustls(Arc::new(config))))
 }
 
 /// Build a root store for the given options.
@@ -338,7 +370,7 @@ mod tests {
     }
 
     #[test]
-    fn unusable_ambient_bundle_keeps_selected_roots() {
+    fn unusable_ambient_bundle_keeps_built_in_roots() {
         let opts = TrustOptions {
             ca_cert: Some("/nonexistent/ca.pem".to_string()),
             ca_cert_is_implicit: true,

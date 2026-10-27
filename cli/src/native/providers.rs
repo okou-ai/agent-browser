@@ -126,7 +126,7 @@ pub async fn close_provider_session_with_plugins(
         return Ok(());
     }
 
-    let client = reqwest::Client::new();
+    let client = crate::tls::http_client()?;
     match session.provider.as_str() {
         "browserbase" => {
             if let Ok(api_key) = env::var("BROWSERBASE_API_KEY") {
@@ -252,7 +252,7 @@ async fn connect_browserbase() -> Result<(String, Option<ProviderSession>), Stri
     let api_key = env::var("BROWSERBASE_API_KEY")
         .map_err(|_| "BROWSERBASE_API_KEY environment variable is not set")?;
 
-    let client = reqwest::Client::new();
+    let client = crate::tls::http_client()?;
     let response = client
         .post("https://api.browserbase.com/v1/sessions")
         .header("content-type", "application/json")
@@ -328,7 +328,7 @@ async fn connect_browserless() -> Result<(String, Option<ProviderSession>), Stri
 
     let url = format!("{}/session", api_url.trim_end_matches('/'));
 
-    let client = reqwest::Client::new();
+    let client = crate::tls::http_client()?;
     let response = client
         .post(&url)
         .query(&[("token", &api_key)])
@@ -386,7 +386,7 @@ async fn connect_browser_use() -> Result<(String, Option<ProviderSession>), Stri
 }
 
 fn browser_use_client() -> Result<reqwest::Client, String> {
-    reqwest::Client::builder()
+    crate::tls::http_client_builder()?
         .redirect(reqwest::redirect::Policy::none())
         .build()
         .map_err(|_| "Browser Use HTTP client could not be initialized".to_string())
@@ -557,7 +557,7 @@ async fn connect_kernel() -> Result<(String, Option<ProviderSession>), String> {
             .insert("profile".to_string(), profile);
     }
 
-    let client = reqwest::Client::new();
+    let client = crate::tls::http_client()?;
     let mut request = client.post(&url).header("Content-Type", "application/json");
     if let Some(ref key) = api_key {
         request = request.header("Authorization", format!("Bearer {}", key));
@@ -696,7 +696,7 @@ mod agentcore {
 
         let signed_headers = sign_request("PUT", &url, &region, Some(&body)).await?;
 
-        let client = reqwest::Client::new();
+        let client = crate::tls::http_client()?;
         let mut req = client.put(&url).body(body.clone());
         for (key, value) in &signed_headers {
             req = req.header(key.as_str(), value.as_str());
@@ -978,7 +978,7 @@ mod agentcore {
 
         let signed_headers = sign_request("PUT", &url, &region, Some(&body)).await?;
 
-        let client = reqwest::Client::new();
+        let client = crate::tls::http_client()?;
         let mut req = client.put(&url).body(body);
         for (key, value) in &signed_headers {
             req = req.header(key.as_str(), value.as_str());

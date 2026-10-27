@@ -7,7 +7,7 @@
       },
       {
         "from": "# Clear CA trust retained by the running session",
-        "to": "# Clear CA trust retained by the running session\n--use-system-ca <bool>   # CLI HTTPS: OS roots by default; false selects built-in Mozilla roots"
+        "to": "# Clear CA trust retained by the running session\n--use-system-ca          # Use the OS trust store for CLI requests (read, install, upgrade, doctor)"
       },
       {
         "from": "Each tool also accepts `extraArgs` for advanced CLI flags and exact CLI parity.",
@@ -100,6 +100,6 @@
     ]
   },
   "resources": {
-    "/schema.json": { "size": 9493, "sha256": "95334604d8560df8aa603dd765c27830badaa490a1ed1d7c8d5b87f8c77aeaaf" }
+    "/schema.json": { "size": 9553, "sha256": "a6a98817164b2502afa1c7669223710bdadeb0793696aae2c46f55e40a810ed8" }
   }
 }

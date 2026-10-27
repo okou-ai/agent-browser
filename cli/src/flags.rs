@@ -265,7 +265,7 @@ fn env_var_is_truthy(name: &str) -> bool {
     }
 }
 
-fn env_var_bool(name: &str) -> Option<bool> {
+pub(crate) fn env_var_bool(name: &str) -> Option<bool> {
     env::var(name)
         .ok()
         .map(|val| !matches!(val.to_lowercase().as_str(), "0" | "false" | "no" | ""))
@@ -654,7 +654,7 @@ pub fn parse_flags(args: &[String]) -> Flags {
         clear_ca_cert,
         use_system_ca: env_var_bool("AGENT_BROWSER_USE_SYSTEM_CA")
             .or(config.use_system_ca)
-            .unwrap_or(true),
+            .unwrap_or(false),
         allow_file_access: env_var_is_truthy("AGENT_BROWSER_ALLOW_FILE_ACCESS")
             || config.allow_file_access.unwrap_or(false),
         hide_scrollbars: env_var_bool("AGENT_BROWSER_HIDE_SCROLLBARS")

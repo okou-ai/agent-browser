@@ -4061,8 +4061,9 @@ Options:
                              (or AGENT_BROWSER_CA_CERT; CLI requests everywhere, local Chromium on Linux;
                              install --with-deps provides certutil)
   --no-ca-cert               Clear CA trust retained by the running browser session
-  --use-system-ca <bool>     Use the OS trust store for CLI requests (default: true)
-                             Use false for built-in Mozilla roots (or AGENT_BROWSER_USE_SYSTEM_CA)
+  --use-system-ca            Use the OS trust store for CLI requests (read, install, upgrade, doctor)
+                             (or AGENT_BROWSER_USE_SYSTEM_CA)
+                             The environment setting also covers CDP/WSS, provider APIs, and AI Gateway
   --allow-file-access        Allow file:// URLs to access local files (Chromium only)
   --hide-scrollbars <bool>   Hide native scrollbars in headless Chromium screenshots (default: true)
                              Use --hide-scrollbars false to keep scrollbars visible

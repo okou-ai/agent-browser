@@ -2028,8 +2028,7 @@ fn tool(name: &str, title: &str, description: &str, properties: Value, required:
         "useSystemCa".to_string(),
         json!({
             "type": "boolean",
-            "default": true,
-            "description": "Use the operating system trust store for the CLI's own HTTPS requests (default: true in this fork). Set false to select built-in Mozilla roots. Does not affect the browser."
+            "description": "Use the operating system trust store instead of the built-in roots for the CLI's own HTTPS requests. Does not affect the browser. In this fork the AGENT_BROWSER_USE_SYSTEM_CA server environment also selects system roots for CDP/WSS, provider APIs, and AI Gateway requests."
         }),
     );
     props.insert(
@@ -5057,14 +5056,11 @@ mod tests {
 
     #[test]
     fn common_global_args_include_use_system_ca() {
-        for enabled in [true, false] {
-            let mut args = Vec::new();
-            append_common_global_args(&mut args, &json!({ "useSystemCa": enabled }), None).unwrap();
-            assert_eq!(
-                args,
-                vec!["--use-system-ca".to_string(), enabled.to_string()]
-            );
-        }
+        let mut args = Vec::new();
+
+        append_common_global_args(&mut args, &json!({ "useSystemCa": true }), None).unwrap();
+
+        assert_eq!(args, vec!["--use-system-ca", "true"]);
     }
 
     #[test]

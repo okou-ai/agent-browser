@@ -230,7 +230,12 @@ impl CdpClient {
             ..Default::default()
         };
 
-        Self::connect_request(request, ws_config, None).await
+        let connector = if normalized_url.starts_with("wss://") {
+            crate::tls::websocket_connector()?
+        } else {
+            None
+        };
+        Self::connect_request(request, ws_config, connector).await
     }
 
     async fn connect_request(
