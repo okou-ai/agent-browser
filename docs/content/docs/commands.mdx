@@ -620,7 +620,6 @@ See [Init Scripts & Extensions](/init-scripts) for launch-time scripts, runtime 
 --ca-cert <path>         # Trust a CA for CLI requests, and for local Chromium on Linux
 --no-ca-cert             # Clear CA trust retained by the running session
 --use-system-ca          # Use the OS trust store for CLI requests (read, install, upgrade, doctor)
-# AGENT_BROWSER_USE_SYSTEM_CA=1 also covers CDP/WSS, provider APIs, and AI Gateway in this fork.
 --allow-file-access      # Allow file:// URLs to access local files (Chromium only)
 --hide-scrollbars <bool> # Hide native scrollbars in headless Chromium screenshots
 -p, --provider <name>    # Browser provider or configured provider plugin
@@ -653,6 +652,8 @@ See [Init Scripts & Extensions](/init-scripts) for launch-time scripts, runtime 
 --config <path>          # Use a custom config file
 --debug                  # Debug output
 ```
+
+In this fork, `AGENT_BROWSER_USE_SYSTEM_CA=1` also covers CDP/WSS, provider APIs, and AI Gateway requests.
 
 See [Configuration](/configuration) for config files and environment variables. See [Proxy](/proxy) for proxy server, bypass, and credential settings.
 
